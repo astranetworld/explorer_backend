@@ -1,7 +1,7 @@
 defmodule BlockScoutWeb.AddressInternalTransactionControllerTest do
   use BlockScoutWeb.ConnCase, async: true
 
-  import BlockScoutWeb.WebRouter.Helpers,
+  import BlockScoutWeb.Routers.WebRouter.Helpers,
     only: [address_internal_transaction_path: 3, address_internal_transaction_path: 4]
 
   alias Explorer.Chain.{Address, Block, InternalTransaction, Transaction}
@@ -16,18 +16,20 @@ defmodule BlockScoutWeb.AddressInternalTransactionControllerTest do
       assert html_response(conn, 404)
     end
 
-    test "with valid address hash without address", %{conn: conn} do
-      conn =
-        get(
-          conn,
-          address_internal_transaction_path(
+    if Application.compile_env(:explorer, :chain_type) !== :rsk do
+      test "with valid address hash without address", %{conn: conn} do
+        conn =
+          get(
             conn,
-            :index,
-            Address.checksum("0x8bf38d4764929064f2d4d3a56520a76ab3df415b")
+            address_internal_transaction_path(
+              conn,
+              :index,
+              Address.checksum("0x8bf38d4764929064f2d4d3a56520a76ab3df415b")
+            )
           )
-        )
 
-      assert html_response(conn, 200)
+        assert html_response(conn, 200)
+      end
     end
 
     test "includes USD exchange rate value for address in assigns", %{conn: conn} do
@@ -402,6 +404,19 @@ defmodule BlockScoutWeb.AddressInternalTransactionControllerTest do
       third_page_items = third_page_to_items ++ third_page_from_items
 
       path = address_internal_transaction_path(BlockScoutWeb.Endpoint, :index, Address.checksum(address.hash))
+
+      empty_page_response =
+        conn
+        |> get(path, %{
+          "block_number" => Integer.to_string(0),
+          "transaction_index" => Integer.to_string(0),
+          "index" => "0",
+          "type" => "JSON"
+        })
+        |> json_response(200)
+        |> Map.get("items")
+
+      assert Enum.count(empty_page_response) == 0
 
       first_page_response =
         conn

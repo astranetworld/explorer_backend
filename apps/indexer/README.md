@@ -24,6 +24,7 @@ Some data has to be extracted from already fetched data, and there're several tr
 - `transaction_actions`: parses logs to extract transaction actions
 - `address_token_balances`: creates token balance entities for further fetching, based on detected token transfers
 - `blocks`: extracts block signer hash from additional data for Clique chains
+- `optimism_withdrawals`: parses logs to extract L2 withdrawal messages
 
 ### Root fetchers
 
@@ -31,6 +32,11 @@ Some data has to be extracted from already fetched data, and there're several tr
 - `block/realtime`: listens for new blocks from websocket and polls node for new blocks, imports new ones one by one
 - `block/catchup`: gets unfetched ranges of blocks, imports them in batches
 - `transaction_action`: optionally fetches/rewrites transaction actions for old blocks (in a given range of blocks for given protocols)
+- `optimism/txn_batch`: fetches transaction batches of Optimism chain
+- `optimism/output_root`: fetches output roots of Optimism chain
+- `optimism/deposit`: fetches deposits to Optimism chain
+- `optimism/withdrawal`: fetches withdrawals from Optimism chain
+- `optimism/withdrawal_event`: fetches withdrawal events on L1 chain
 - `withdrawals`: optionally fetches withdrawals for old blocks (in the given from boundary of block numbers)
 
 Both block fetchers retrieve/extract the blocks themselves and the following additional data:
@@ -98,9 +104,9 @@ Additionally:
 These workers are created for fetching information, which previously wasn't fetched in existing fetchers, or was fetched incorrectly.
 After all deployed instances get all needed data, these fetchers should be deprecated and removed.
 
-- `uncataloged_token_transfers`: extracts token transfers from logs, which previously weren't parsed due to unknown format
+- `uncataloged_token_transfers`: extracts token transfers from logs, which weren't parsed due to an unknown format
 - `uncles_without_index`: adds previously unfetched `index` field for unfetched blocks in `block_second_degree_relations`
-- `blocks_transactions_mismatch`: refetches each block once and revokes consensus to those whose transaction number mismatches with the number currently stored. This is meant to force the correction of a race condition that caused successfully fetched transactions to be overwritten by a following non-consensus block: [#1911](https://github.com/blockscout/blockscout/issues/1911).
+- `blocks_transactions_mismatch`: refetches each block once and revokes consensus for those whose transaction number mismatches with the number currently stored. This is meant to force the correction of a race condition that caused successfully fetched transactions to be overwritten by a following non-consensus block: [#1911](https://github.com/blockscout/blockscout/issues/1911).
 
 ## Memory Usage
 

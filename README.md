@@ -22,21 +22,23 @@ Blockscout is an open-source alternative to centralized, closed source block exp
 
 ## Supported Projects
 
-Blockscout currently supports several hundred chains and rollups throughout the greater blockchain ecosystem. Ethereum, Cosmos, Polkadot, Avalanche, Near and many others include Blockscout integrations. [A comprehensive list is available here](https://docs.blockscout.com/about/projects). If your project is not listed, please submit a PR or [contact the team in Discord](https://discord.com/invite/blockscout).
+Blockscout currently supports several hundred chains and rollups throughout the greater blockchain ecosystem. Ethereum, Cosmos, Polkadot, Avalanche, Near and many others include Blockscout integrations. A comprehensive list is available at [chains.blockscout.com](https://chains.blockscout.com). If your project is not listed, contact the team in [Discord](https://discord.com/invite/blockscout).
 
 ## Getting Started
 
 See the [project documentation](https://docs.blockscout.com/) for instructions:
 
-- [Requirements](https://docs.blockscout.com/for-developers/information-and-settings/requirements)
+- [Manual deployment](https://docs.blockscout.com/for-developers/deployment/manual-deployment-guide)
+- [Docker-compose deployment](https://docs.blockscout.com/for-developers/deployment/docker-compose-deployment)
+- [Kubernetes deployment](https://docs.blockscout.com/for-developers/deployment/kubernetes-deployment)
+- [Manual deployment (backend + old UI)](https://docs.blockscout.com/for-developers/deployment/manual-old-ui)
 - [Ansible deployment](https://docs.blockscout.com/for-developers/ansible-deployment)
-- [Manual deployment](https://docs.blockscout.com/for-developers/manual-deployment)
-- [ENV variables](https://docs.blockscout.com/for-developers/information-and-settings/env-variables)
+- [ENV variables](https://docs.blockscout.com/setup/env-variables)
 - [Configuration options](https://docs.blockscout.com/for-developers/configuration-options)
 
 ## Acknowledgements
 
-We would like to thank the [EthPrize foundation](http://ethprize.io/) for their funding support.
+We would like to thank the EthPrize foundation for their funding support.
 
 ## Contributing
 

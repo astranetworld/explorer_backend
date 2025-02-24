@@ -1,16 +1,14 @@
 defmodule Explorer.Counters.BlockPriorityFeeCounter do
   @moduledoc """
-  Caches Block Burned Fee counter.
+  Caches Block Priority Fee counter.
   """
   use GenServer
+  use Utils.CompileTimeEnvHelper, enable_consolidation: [:explorer, [__MODULE__, :enable_consolidation]]
 
   alias Explorer.Chain
   alias Explorer.Counters.Helper
 
   @cache_name :block_priority_fee_counter
-
-  config = Application.compile_env(:explorer, Explorer.Counters.BlockPriorityFeeCounter)
-  @enable_consolidation Keyword.get(config, :enable_consolidation)
 
   @spec start_link(term()) :: GenServer.on_start()
   def start_link(_) do
@@ -19,7 +17,7 @@ defmodule Explorer.Counters.BlockPriorityFeeCounter do
 
   @impl true
   def init(_args) do
-    create_cache_table()
+    Helper.create_cache_table(@cache_name)
 
     {:ok, %{consolidate?: enable_consolidation?()}, {:continue, :ok}}
   end
@@ -57,24 +55,16 @@ defmodule Explorer.Counters.BlockPriorityFeeCounter do
 
   defp update_cache(block_hash) do
     block_hash_string = get_block_hash_string(block_hash)
-    new_data = Chain.block_to_priority_fee_of_1559_txs(block_hash)
-    put_into_cache("#{block_hash_string}", new_data)
+    new_data = Chain.block_to_priority_fee_of_1559_transactions(block_hash)
+    Helper.put_into_ets_cache(@cache_name, "#{block_hash_string}", new_data)
   end
 
   defp fetch_from_cache(key) do
-    Helper.fetch_from_cache(key, @cache_name)
-  end
-
-  defp put_into_cache(key, value) do
-    :ets.insert(@cache_name, {key, value})
+    Helper.fetch_from_ets_cache(key, @cache_name)
   end
 
   defp get_block_hash_string(block_hash) do
     Base.encode16(block_hash.bytes, case: :lower)
-  end
-
-  defp create_cache_table do
-    Helper.create_cache_table(@cache_name)
   end
 
   defp enable_consolidation?, do: @enable_consolidation

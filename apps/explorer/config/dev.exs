@@ -5,13 +5,36 @@ config :explorer, Explorer.Repo,
   timeout: :timer.seconds(80),
   migration_lock: nil
 
-# Configure API database
-config :explorer, Explorer.Repo.Replica1, timeout: :timer.seconds(80)
+for repo <- [
+      # Configure API database
+      Explorer.Repo.Replica1,
 
-# Configure Account database
-config :explorer, Explorer.Repo.Account, timeout: :timer.seconds(80)
+      # Feature dependent repos
+      Explorer.Repo.Account,
+      Explorer.Repo.BridgedTokens,
+      Explorer.Repo.ShrunkInternalTransactions,
 
-config :explorer, Explorer.Repo.PolygonEdge, timeout: :timer.seconds(80)
+      # Chain-type dependent repos
+      Explorer.Repo.Arbitrum,
+      Explorer.Repo.Beacon,
+      Explorer.Repo.Blackfort,
+      Explorer.Repo.Celo,
+      Explorer.Repo.Filecoin,
+      Explorer.Repo.Mud,
+      Explorer.Repo.Optimism,
+      Explorer.Repo.PolygonEdge,
+      Explorer.Repo.PolygonZkevm,
+      Explorer.Repo.RSK,
+      Explorer.Repo.Scroll,
+      Explorer.Repo.Shibarium,
+      Explorer.Repo.Stability,
+      Explorer.Repo.Suave,
+      Explorer.Repo.Zilliqa,
+      Explorer.Repo.ZkSync,
+      Explorer.Repo.Neon
+    ] do
+  config :explorer, repo, timeout: :timer.seconds(80)
+end
 
 config :explorer, Explorer.Tracer, env: "dev", disabled?: true
 

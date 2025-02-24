@@ -4,21 +4,42 @@ import Config
 config :explorer, Explorer.Repo,
   prepare: :unnamed,
   timeout: :timer.seconds(60),
-  migration_lock: nil
+  migration_lock: nil,
+  ssl_opts: [verify: :verify_none]
 
-# Configures API the database
-config :explorer, Explorer.Repo.Replica1,
-  prepare: :unnamed,
-  timeout: :timer.seconds(60)
+for repo <- [
+      # Configures API the database
+      Explorer.Repo.Replica1,
 
-# Configures Account database
-config :explorer, Explorer.Repo.Account,
-  prepare: :unnamed,
-  timeout: :timer.seconds(60)
+      # Feature dependent repos
+      Explorer.Repo.Account,
+      Explorer.Repo.BridgedTokens,
+      Explorer.Repo.ShrunkInternalTransactions,
 
-config :explorer, Explorer.Repo.PolygonEdge,
-  prepare: :unnamed,
-  timeout: :timer.seconds(60)
+      # Chain-type dependent repos
+      Explorer.Repo.Arbitrum,
+      Explorer.Repo.Beacon,
+      Explorer.Repo.Blackfort,
+      Explorer.Repo.Celo,
+      Explorer.Repo.Filecoin,
+      Explorer.Repo.Mud,
+      Explorer.Repo.Optimism,
+      Explorer.Repo.PolygonEdge,
+      Explorer.Repo.PolygonZkevm,
+      Explorer.Repo.RSK,
+      Explorer.Repo.Scroll,
+      Explorer.Repo.Shibarium,
+      Explorer.Repo.Stability,
+      Explorer.Repo.Suave,
+      Explorer.Repo.Zilliqa,
+      Explorer.Repo.ZkSync,
+      Explorer.Repo.Neon
+    ] do
+  config :explorer, repo,
+    prepare: :unnamed,
+    timeout: :timer.seconds(60),
+    ssl_opts: [verify: :verify_none]
+end
 
 config :explorer, Explorer.Tracer, env: "production", disabled?: true
 

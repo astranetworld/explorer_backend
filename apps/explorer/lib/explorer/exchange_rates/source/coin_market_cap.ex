@@ -40,10 +40,12 @@ defmodule Explorer.ExchangeRates.Source.CoinMarketCap do
         id: id,
         last_updated: last_updated,
         market_cap_usd: to_decimal(market_cap_data_usd),
+        tvl_usd: nil,
         name: token_properties["name"],
         symbol: String.upcase(token_properties["symbol"]),
         usd_value: current_price,
-        volume_24h_usd: to_decimal(total_volume_data_usd)
+        volume_24h_usd: to_decimal(total_volume_data_usd),
+        image_url: nil
       }
     ]
   end
@@ -86,6 +88,12 @@ defmodule Explorer.ExchangeRates.Source.CoinMarketCap do
   end
 
   @impl Source
+  def secondary_source_url do
+    coin_id = config(:secondary_coin_id)
+    if coin_id, do: "#{api_quotes_latest_url()}?id=#{coin_id}&CMC_PRO_API_KEY=#{api_key()}", else: nil
+  end
+
+  @impl Source
   def headers do
     []
   end
@@ -104,9 +112,9 @@ defmodule Explorer.ExchangeRates.Source.CoinMarketCap do
   @spec get_token_properties(map()) :: map()
   def get_token_properties(market_data) do
     with token_values_list <- market_data |> Map.values(),
-         true <- Enum.count(token_values_list) > 0,
+         false <- Enum.empty?(token_values_list),
          token_values <- token_values_list |> Enum.at(0),
-         true <- Enum.count(token_values) > 0 do
+         false <- Enum.empty?(token_values) do
       if is_list(token_values) do
         token_values |> Enum.at(0)
       else

@@ -6,21 +6,35 @@ defmodule Explorer.Chain.Import do
   alias Ecto.Changeset
   alias Explorer.Account.Notify
   alias Explorer.Chain.Events.Publisher
-  alias Explorer.Chain.Import
+  alias Explorer.Chain.{Block, Import}
   alias Explorer.Repo
 
   require Logger
 
   @stages [
-    Import.Stage.Addresses,
-    Import.Stage.AddressReferencing,
-    Import.Stage.BlockReferencing,
-    Import.Stage.BlockFollowing,
-    Import.Stage.BlockPending
+    [
+      Import.Stage.Blocks
+    ],
+    [
+      Import.Stage.Main
+    ],
+    [
+      Import.Stage.BlockTransactionReferencing,
+      Import.Stage.TokenReferencing,
+      Import.Stage.TokenInstances,
+      Import.Stage.Logs,
+      Import.Stage.InternalTransactions,
+      Import.Stage.ChainTypeSpecific
+    ]
   ]
 
   # in order so that foreign keys are inserted before being referenced
-  @runners Enum.flat_map(@stages, fn stage -> stage.runners() end)
+  @configured_runners Enum.flat_map(@stages, fn stage_batch ->
+                        Enum.flat_map(stage_batch, fn stage -> stage.runners() end)
+                      end)
+  @all_runners Enum.flat_map(@stages, fn stage_batch ->
+                 Enum.flat_map(stage_batch, fn stage -> stage.all_runners() end)
+               end)
 
   quoted_runner_option_value =
     quote do
@@ -28,7 +42,7 @@ defmodule Explorer.Chain.Import do
     end
 
   quoted_runner_options =
-    for runner <- @runners do
+    for runner <- @all_runners do
       quoted_key =
         quote do
           optional(unquote(runner.option_key()))
@@ -44,7 +58,7 @@ defmodule Explorer.Chain.Import do
         }
 
   quoted_runner_imported =
-    for runner <- @runners do
+    for runner <- @all_runners do
       quoted_key =
         quote do
           optional(unquote(runner.option_key()))
@@ -60,7 +74,7 @@ defmodule Explorer.Chain.Import do
 
   @type all_result ::
           {:ok, %{unquote_splicing(quoted_runner_imported)}}
-          | {:error, [Changeset.t()] | :timeout}
+          | {:error, [Changeset.t()] | :timeout | :insert_to_multichain_search_db_failed}
           | {:error, step :: Ecto.Multi.name(), failed_value :: any(),
              changes_so_far :: %{optional(Ecto.Multi.name()) => any()}}
 
@@ -69,7 +83,7 @@ defmodule Explorer.Chain.Import do
   # milliseconds
   @transaction_timeout :timer.minutes(4)
 
-  @imported_table_rows @runners
+  @imported_table_rows @all_runners
                        |> Stream.map(&Map.put(&1.imported_table_row(), :key, &1.option_key()))
                        |> Enum.map_join("\n", fn %{
                                                    key: key,
@@ -78,7 +92,7 @@ defmodule Explorer.Chain.Import do
                                                  } ->
                          "| `#{inspect(key)}` | `#{value_type}` | #{value_description} |"
                        end)
-  @runner_options_doc Enum.map_join(@runners, fn runner ->
+  @runner_options_doc Enum.map_join(@all_runners, fn runner ->
                         ecto_schema_module = runner.ecto_schema_module()
 
                         """
@@ -123,7 +137,7 @@ defmodule Explorer.Chain.Import do
       milliseconds.
   #{@runner_options_doc}
   """
-  @spec all(all_options()) :: all_result()
+  # @spec all(all_options()) :: all_result()
   def all(options) when is_map(options) do
     with {:ok, runner_options_pairs} <- validate_options(options),
          {:ok, valid_runner_option_pairs} <- validate_runner_options_pairs(runner_options_pairs),
@@ -188,7 +202,8 @@ defmodule Explorer.Chain.Import do
     local_options = Map.drop(options, @global_options)
 
     {reverse_runner_options_pairs, unknown_options} =
-      Enum.reduce(@runners, {[], local_options}, fn runner, {acc_runner_options_pairs, unknown_options} = acc ->
+      Enum.reduce(@configured_runners, {[], local_options}, fn runner,
+                                                               {acc_runner_options_pairs, unknown_options} = acc ->
         option_key = runner.option_key()
 
         case local_options do
@@ -281,9 +296,11 @@ defmodule Explorer.Chain.Import do
     timestamps = timestamps()
     full_options = Map.put(options, :timestamps, timestamps)
 
-    {multis, final_runner_to_changes_list} =
-      Enum.flat_map_reduce(@stages, runner_to_changes_list, fn stage, remaining_runner_to_changes_list ->
-        stage.multis(remaining_runner_to_changes_list, full_options)
+    {multis_batches, final_runner_to_changes_list} =
+      Enum.map_reduce(@stages, runner_to_changes_list, fn stage_batch, remaining_runner_to_changes_list ->
+        Enum.flat_map_reduce(stage_batch, remaining_runner_to_changes_list, fn stage, inner_remaining_list ->
+          stage.multis(inner_remaining_list, full_options)
+        end)
       end)
 
     unless Enum.empty?(final_runner_to_changes_list) do
@@ -291,7 +308,7 @@ defmodule Explorer.Chain.Import do
             "No stages consumed the following runners: #{final_runner_to_changes_list |> Map.keys() |> inspect()}"
     end
 
-    multis
+    multis_batches
   end
 
   def insert_changes_list(repo, changes_list, options) when is_atom(repo) and is_list(changes_list) do
@@ -321,19 +338,35 @@ defmodule Explorer.Chain.Import do
     runner_to_changes_list
     |> runner_to_changes_list_to_multis(options)
     |> logged_import(options)
+    |> case do
+      {:ok, result} ->
+        {:ok, result}
+
+      error ->
+        set_refetch_needed_for_partially_imported_blocks(options)
+        error
+    end
+  rescue
+    exception ->
+      set_refetch_needed_for_partially_imported_blocks(options)
+      reraise exception, __STACKTRACE__
   end
 
-  defp logged_import(multis, options) when is_list(multis) and is_map(options) do
+  defp logged_import(multis_batches, options) when is_list(multis_batches) and is_map(options) do
     import_id = :erlang.unique_integer([:positive])
 
-    Explorer.Logger.metadata(fn -> import_transactions(multis, options) end, import_id: import_id)
+    Explorer.Logger.metadata(fn -> import_batch_transactions(multis_batches, options) end, import_id: import_id)
   end
 
-  defp import_transactions(multis, options) when is_list(multis) and is_map(options) do
-    Enum.reduce_while(multis, {:ok, %{}}, fn multi, {:ok, acc_changes} ->
-      case import_transaction(multi, options) do
-        {:ok, changes} -> {:cont, {:ok, Map.merge(acc_changes, changes)}}
-        {:error, _, _, _} = error -> {:halt, error}
+  defp import_batch_transactions(multis_batches, options) when is_list(multis_batches) and is_map(options) do
+    Enum.reduce_while(multis_batches, {:ok, %{}}, fn multis, {:ok, acc_changes} ->
+      multis
+      |> run_parallel_multis(options)
+      |> Task.yield_many(:infinity)
+      |> handle_task_results(acc_changes)
+      |> case do
+        {:ok, changes} -> {:cont, {:ok, changes}}
+        error -> {:halt, error}
       end
     end)
   rescue
@@ -344,9 +377,36 @@ defmodule Explorer.Chain.Import do
       end
   end
 
+  defp run_parallel_multis(multis, options) do
+    Enum.map(multis, fn multi -> Task.async(fn -> import_transaction(multi, options) end) end)
+  end
+
   defp import_transaction(multi, options) when is_map(options) do
     Repo.logged_transaction(multi, timeout: Map.get(options, :timeout, @transaction_timeout))
+  rescue
+    exception -> {:exception, exception, __STACKTRACE__}
   end
+
+  defp handle_task_results(task_results, acc_changes) do
+    Enum.reduce_while(task_results, {:ok, acc_changes}, fn {_task, task_result}, {:ok, acc_changes_inner} ->
+      case task_result do
+        {:ok, {:ok, changes}} -> {:cont, {:ok, Map.merge(acc_changes_inner, changes)}}
+        {:ok, {:exception, exception, stacktrace}} -> reraise exception, stacktrace
+        {:ok, error} -> {:halt, error}
+        {:exit, reason} -> {:halt, reason}
+        nil -> {:halt, :timeout}
+      end
+    end)
+  end
+
+  defp set_refetch_needed_for_partially_imported_blocks(%{blocks: %{params: blocks_params}}) do
+    block_numbers = Enum.map(blocks_params, & &1.number)
+    Block.set_refetch_needed(block_numbers)
+
+    Logger.warning("Set refetch_needed for partially imported block because of error: #{inspect(block_numbers)}")
+  end
+
+  defp set_refetch_needed_for_partially_imported_blocks(_options), do: :ok
 
   @spec timestamps() :: timestamps
   def timestamps do

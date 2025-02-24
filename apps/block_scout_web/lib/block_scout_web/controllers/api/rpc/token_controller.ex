@@ -1,5 +1,6 @@
 defmodule BlockScoutWeb.API.RPC.TokenController do
   use BlockScoutWeb, :controller
+  use Utils.CompileTimeEnvHelper, bridged_tokens_enabled: [:explorer, [Explorer.Chain.BridgedToken, :enabled]]
 
   alias BlockScoutWeb.API.RPC.Helper
   alias Explorer.{Chain, PagingOptions}
@@ -47,6 +48,38 @@ defmodule BlockScoutWeb.API.RPC.TokenController do
 
       {:format, :error} ->
         render(conn, :error, error: "Invalid contract address hash")
+    end
+  end
+
+  if @bridged_tokens_enabled do
+    @api_true [api?: true]
+    def bridgedtokenlist(conn, params) do
+      import BlockScoutWeb.PagingHelper,
+        only: [
+          chain_ids_filter_options: 1,
+          tokens_sorting: 1
+        ]
+
+      import BlockScoutWeb.Chain,
+        only: [
+          paging_options: 1
+        ]
+
+      bridged_tokens =
+        if BridgedToken.enabled?() do
+          options =
+            params
+            |> paging_options()
+            |> Keyword.merge(chain_ids_filter_options(params))
+            |> Keyword.merge(tokens_sorting(params))
+            |> Keyword.merge(@api_true)
+
+          "" |> BridgedToken.list_top_bridged_tokens(options)
+        else
+          []
+        end
+
+      render(conn, "bridgedtokenlist.json", %{bridged_tokens: bridged_tokens})
     end
   end
 

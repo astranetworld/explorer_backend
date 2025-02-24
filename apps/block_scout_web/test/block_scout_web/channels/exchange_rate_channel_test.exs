@@ -27,10 +27,12 @@ defmodule BlockScoutWeb.ExchangeRateChannelTest do
       id: "test",
       last_updated: DateTime.utc_now(),
       market_cap_usd: Decimal.new("1000000.0"),
+      tvl_usd: Decimal.new("2000000.0"),
       name: "test",
       symbol: Explorer.coin(),
       usd_value: Decimal.new("2.5"),
-      volume_24h_usd: Decimal.new("1000.0")
+      volume_24h_usd: Decimal.new("1000.0"),
+      image_url: nil
     }
 
     on_exit(fn ->
@@ -42,7 +44,7 @@ defmodule BlockScoutWeb.ExchangeRateChannelTest do
 
   describe "new_rate" do
     test "subscribed user is notified", %{token: token} do
-      ExchangeRates.handle_info({nil, {:ok, [token]}}, %{})
+      ExchangeRates.handle_info({nil, {:ok, false, [token]}}, %{})
       Supervisor.terminate_child(Explorer.Supervisor, {ConCache, Explorer.Market.MarketHistoryCache.cache_name()})
       Supervisor.restart_child(Explorer.Supervisor, {ConCache, Explorer.Market.MarketHistoryCache.cache_name()})
 
@@ -62,7 +64,7 @@ defmodule BlockScoutWeb.ExchangeRateChannelTest do
     end
 
     test "subscribed user is notified with market history", %{token: token} do
-      ExchangeRates.handle_info({nil, {:ok, [token]}}, %{})
+      ExchangeRates.handle_info({nil, {:ok, false, [token]}}, %{})
       Supervisor.terminate_child(Explorer.Supervisor, {ConCache, Explorer.Market.MarketHistoryCache.cache_name()})
       Supervisor.restart_child(Explorer.Supervisor, {ConCache, Explorer.Market.MarketHistoryCache.cache_name()})
 

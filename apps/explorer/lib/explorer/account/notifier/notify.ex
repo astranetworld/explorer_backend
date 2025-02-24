@@ -5,7 +5,7 @@ defmodule Explorer.Account.Notifier.Notify do
 
   alias Explorer.Account.Notifier.{Email, ForbiddenAddress, Summary}
   alias Explorer.Account.{WatchlistAddress, WatchlistNotification}
-  alias Explorer.Chain.{TokenTransfer, Transaction}
+  alias Explorer.Chain.Transaction
   alias Explorer.{Mailer, Repo}
 
   require Logger
@@ -20,20 +20,16 @@ defmodule Explorer.Account.Notifier.Notify do
     Enum.map(transactions, fn transaction -> process(transaction) end)
   end
 
-  defp process(%TokenTransfer{} = transfer) do
-    Logger.debug(transfer, fetcher: :account)
+  defp process(%Transaction{block_timestamp: block_timestamp} = transaction) when not is_nil(block_timestamp) do
+    if DateTime.after?(block_timestamp, DateTime.add(DateTime.utc_now(), -1, :day)) do
+      Logger.debug(transaction, fetcher: :account)
 
-    transfer
-    |> Summary.process()
-    |> Enum.map(fn summary -> notify_watchlists(summary) end)
-  end
-
-  defp process(%Transaction{} = transaction) do
-    Logger.debug(transaction, fetcher: :account)
-
-    transaction
-    |> Summary.process()
-    |> Enum.map(fn summary -> notify_watchlists(summary) end)
+      transaction
+      |> Summary.process()
+      |> Enum.map(fn summary -> notify_watchlists(summary) end)
+    else
+      nil
+    end
   end
 
   defp process(_), do: nil
@@ -55,7 +51,8 @@ defmodule Explorer.Account.Notifier.Notify do
   defp notify_watchlists(nil), do: nil
 
   defp notify_watchlist(%WatchlistAddress{} = address, summary, direction) do
-    case ForbiddenAddress.check(address.address_hash) do
+    case !WatchlistNotification.limit_reached_for_watchlist_id?(address.watchlist_id) &&
+           ForbiddenAddress.check(address.address_hash) do
       {:ok, _address_hash} ->
         with %WatchlistNotification{} = notification <-
                build_watchlist_notification(
@@ -73,6 +70,9 @@ defmodule Explorer.Account.Notifier.Notify do
         end
 
       {:error, _message} ->
+        nil
+
+      false ->
         nil
     end
   end
@@ -106,9 +106,6 @@ defmodule Explorer.Account.Notifier.Notify do
           Logger.info("--- email delivery response: FAILED", fetcher: :account)
           Logger.info(error, fetcher: :account)
       end
-    else
-      Logger.info("--- email delivery response: FAILED", fetcher: :account)
-      Logger.info("Email is not composed (is nil)", fetcher: :account)
     end
   end
 
@@ -116,9 +113,10 @@ defmodule Explorer.Account.Notifier.Notify do
   direction  = :incoming || :outgoing
   """
   def build_watchlist_notification(%Explorer.Account.WatchlistAddress{} = address, summary, direction) do
-    if is_watched(address, summary, direction) do
+    if watched?(address, summary, direction) do
       %WatchlistNotification{
         watchlist_address_id: address.id,
+        watchlist_id: address.watchlist_id,
         transaction_hash: summary.transaction_hash,
         from_address_hash: summary.from_address_hash,
         to_address_hash: summary.to_address_hash,
@@ -127,7 +125,7 @@ defmodule Explorer.Account.Notifier.Notify do
         block_number: summary.block_number,
         amount: summary.amount,
         subject: summary.subject,
-        tx_fee: summary.tx_fee,
+        transaction_fee: summary.transaction_fee,
         name: summary.name,
         type: summary.type,
         from_address_hash_hash: hash_to_lower_case_string(summary.from_address_hash),
@@ -138,7 +136,8 @@ defmodule Explorer.Account.Notifier.Notify do
     end
   end
 
-  defp is_watched(%WatchlistAddress{} = address, %{type: type}, direction) do
+  # credo:disable-for-next-line
+  defp watched?(%WatchlistAddress{} = address, %{type: type}, direction) do
     case {type, direction} do
       {"COIN", :incoming} -> address.watch_coin_input
       {"COIN", :outgoing} -> address.watch_coin_output
@@ -148,6 +147,8 @@ defmodule Explorer.Account.Notifier.Notify do
       {"ERC-721", :outgoing} -> address.watch_erc_721_output
       {"ERC-1155", :incoming} -> address.watch_erc_1155_input
       {"ERC-1155", :outgoing} -> address.watch_erc_1155_output
+      {"ERC-404", :incoming} -> address.watch_erc_404_input
+      {"ERC-404", :outgoing} -> address.watch_erc_404_output
     end
   end
 

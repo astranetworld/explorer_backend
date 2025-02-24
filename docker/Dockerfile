@@ -1,76 +1,104 @@
-FROM bitwalker/alpine-elixir-phoenix:1.14 AS builder
+FROM hexpm/elixir:1.17.3-erlang-27.1-alpine-3.20.3 AS builder-deps
 
 WORKDIR /app
 
-ENV MIX_ENV="prod"
-
-RUN apk --no-cache --update add alpine-sdk gmp-dev automake libtool inotify-tools autoconf python3 file libstdc++ curl ca-certificates
-
-ARG CACHE_EXCHANGE_RATES_PERIOD
-ARG API_V1_READ_METHODS_DISABLED
-ARG DISABLE_WEBAPP
-ARG API_V1_WRITE_METHODS_DISABLED
-ARG CACHE_TOTAL_GAS_USAGE_COUNTER_ENABLED
-ARG ADMIN_PANEL_ENABLED
-ARG CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL
-ARG SESSION_COOKIE_DOMAIN
-ARG MIXPANEL_TOKEN
-ARG MIXPANEL_URL
-ARG AMPLITUDE_API_KEY
-ARG AMPLITUDE_URL
-ARG CHAIN_TYPE
-ENV CHAIN_TYPE=${CHAIN_TYPE}
+RUN apk --no-cache --update add \
+    alpine-sdk gmp-dev automake libtool inotify-tools autoconf python3 file gcompat libstdc++ curl ca-certificates git make
 
 # Cache elixir deps
-ADD mix.exs mix.lock ./
-ADD apps/block_scout_web/mix.exs ./apps/block_scout_web/
-ADD apps/explorer/mix.exs ./apps/explorer/
-ADD apps/ethereum_jsonrpc/mix.exs ./apps/ethereum_jsonrpc/
-ADD apps/indexer/mix.exs ./apps/indexer/
+COPY mix.exs mix.lock ./
+COPY apps/block_scout_web/mix.exs ./apps/block_scout_web/
+COPY apps/explorer/mix.exs ./apps/explorer/
+COPY apps/ethereum_jsonrpc/mix.exs ./apps/ethereum_jsonrpc/
+COPY apps/indexer/mix.exs ./apps/indexer/
+COPY apps/utils/mix.exs ./apps/utils/
+COPY apps/nft_media_handler/mix.exs ./apps/nft_media_handler/
 
+ENV MIX_ENV="prod"
 ENV MIX_HOME=/opt/mix
 RUN mix local.hex --force
-RUN mix do deps.get, local.rebar --force, deps.compile
+RUN mix do deps.get, local.rebar --force, deps.compile --skip-umbrella-children
 
-ADD apps ./apps
-ADD config ./config
-ADD rel ./rel
-ADD *.exs ./
-
-RUN apk add --update nodejs npm
-
-# Run forderground build and phoenix digest
-RUN mix compile && npm install npm@latest
-
-# Add blockscout npm deps
-RUN cd apps/block_scout_web/assets/ && \
-    npm install && \
-    npm run deploy && \
-    cd /app/apps/explorer/ && \
-    npm install
-
-RUN export "CFLAGS=-I/usr/local/include -L/usr/local/lib" && cd deps/ex_secp256k1 && mix deps.get && mix compile
-RUN mix phx.digest
-
-RUN mkdir -p /opt/release \
-  && mix release blockscout \
-  && mv _build/${MIX_ENV}/rel/blockscout /opt/release
+COPY config ./config
+COPY rel ./rel
+COPY apps ./apps
 
 ##############################################################
-FROM bitwalker/alpine-elixir-phoenix:1.14
+FROM builder-deps AS builder
+
+ENV DISABLE_WEBAPP=true
+ENV ADMIN_PANEL_ENABLED=false
+ARG DISABLE_INDEXER
+ENV DISABLE_INDEXER=${DISABLE_INDEXER}
+ARG DISABLE_API
+ENV DISABLE_API=${DISABLE_API}
+ARG API_V1_READ_METHODS_DISABLED
+ENV API_V1_READ_METHODS_DISABLED=${API_V1_READ_METHODS_DISABLED}
+ARG API_V1_WRITE_METHODS_DISABLED
+ENV API_V1_WRITE_METHODS_DISABLED=${API_V1_WRITE_METHODS_DISABLED}
+ARG CHAIN_TYPE
+ENV CHAIN_TYPE=${CHAIN_TYPE}
+ARG BRIDGED_TOKENS_ENABLED
+ENV BRIDGED_TOKENS_ENABLED=${BRIDGED_TOKENS_ENABLED}
+ARG MUD_INDEXER_ENABLED
+ENV MUD_INDEXER_ENABLED=${MUD_INDEXER_ENABLED}
+ARG SHRINK_INTERNAL_TRANSACTIONS_ENABLED
+ENV SHRINK_INTERNAL_TRANSACTIONS_ENABLED=${SHRINK_INTERNAL_TRANSACTIONS_ENABLED}
+ARG API_GRAPHQL_MAX_COMPLEXITY
+ENV API_GRAPHQL_MAX_COMPLEXITY=${API_GRAPHQL_MAX_COMPLEXITY}
+
+# Run backend compilation
+RUN mix compile
+
+RUN mkdir -p /opt/release && \
+    mix release blockscout && \
+    mv _build/${MIX_ENV}/rel/blockscout /opt/release
+
+##############################################################
+FROM hexpm/elixir:1.17.3-erlang-27.1-alpine-3.20.3
+
+WORKDIR /app
+
+ARG BLOCKSCOUT_USER=blockscout
+ARG BLOCKSCOUT_GROUP=blockscout
+ARG BLOCKSCOUT_UID=10001
+ARG BLOCKSCOUT_GID=10001
+
+RUN apk --no-cache --update add jq curl && \
+    addgroup --system --gid ${BLOCKSCOUT_GID} ${BLOCKSCOUT_GROUP} && \
+    adduser --system --uid ${BLOCKSCOUT_UID} --ingroup ${BLOCKSCOUT_GROUP} --disabled-password ${BLOCKSCOUT_USER}
+
+ENV DISABLE_WEBAPP=true
+ENV ADMIN_PANEL_ENABLED=false
+ARG DISABLE_INDEXER
+ENV DISABLE_INDEXER=${DISABLE_INDEXER}
+ARG DISABLE_API
+ENV DISABLE_API=${DISABLE_API}
+ARG API_V1_READ_METHODS_DISABLED
+ENV API_V1_READ_METHODS_DISABLED=${API_V1_READ_METHODS_DISABLED}
+ARG API_V1_WRITE_METHODS_DISABLED
+ENV API_V1_WRITE_METHODS_DISABLED=${API_V1_WRITE_METHODS_DISABLED}
+ARG CHAIN_TYPE
+ENV CHAIN_TYPE=${CHAIN_TYPE}
+ARG BRIDGED_TOKENS_ENABLED
+ENV BRIDGED_TOKENS_ENABLED=${BRIDGED_TOKENS_ENABLED}
+ARG MUD_INDEXER_ENABLED
+ENV MUD_INDEXER_ENABLED=${MUD_INDEXER_ENABLED}
+ARG SHRINK_INTERNAL_TRANSACTIONS_ENABLED
+ENV SHRINK_INTERNAL_TRANSACTIONS_ENABLED=${SHRINK_INTERNAL_TRANSACTIONS_ENABLED}
+ARG API_GRAPHQL_MAX_COMPLEXITY
+ENV API_GRAPHQL_MAX_COMPLEXITY=${API_GRAPHQL_MAX_COMPLEXITY}
 
 ARG RELEASE_VERSION
 ENV RELEASE_VERSION=${RELEASE_VERSION}
-ARG CHAIN_TYPE
-ENV CHAIN_TYPE=${CHAIN_TYPE}
 ARG BLOCKSCOUT_VERSION
 ENV BLOCKSCOUT_VERSION=${BLOCKSCOUT_VERSION}
 
-RUN apk --no-cache --update add jq curl
+COPY --from=builder --chown=${BLOCKSCOUT_USER}:${BLOCKSCOUT_GROUP} /opt/release/blockscout .
+COPY --from=builder --chown=${BLOCKSCOUT_USER}:${BLOCKSCOUT_GROUP} /app/config/config_helper.exs ./config/config_helper.exs
+COPY --from=builder --chown=${BLOCKSCOUT_USER}:${BLOCKSCOUT_GROUP} /app/config/config_helper.exs /app/releases/${RELEASE_VERSION}/config_helper.exs
+COPY --from=builder --chown=${BLOCKSCOUT_USER}:${BLOCKSCOUT_GROUP} /app/config/assets/precompiles-arbitrum.json ./config/assets/precompiles-arbitrum.json
 
-WORKDIR /app
+RUN mkdir dets && mkdir temp && chown -R ${BLOCKSCOUT_USER}:${BLOCKSCOUT_GROUP} /app
 
-COPY --from=builder /opt/release/blockscout .
-COPY --from=builder /app/apps/explorer/node_modules ./node_modules
-COPY --from=builder /app/config/config_helper.exs ./config/config_helper.exs
-COPY --from=builder /app/config/config_helper.exs /app/releases/${RELEASE_VERSION}/config_helper.exs
+USER ${BLOCKSCOUT_USER}:${BLOCKSCOUT_GROUP}
