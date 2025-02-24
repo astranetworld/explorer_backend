@@ -559,6 +559,10 @@ config :indexer, Indexer.Fetcher.Withdrawal.Supervisor,
 
 config :indexer, Indexer.Fetcher.Withdrawal, first_block: System.get_env("WITHDRAWALS_FIRST_BLOCK")
 
+config :indexer, Indexer.Fetcher.Amc,
+       beijing_block: ConfigHelper.parse_integer_env_var("INDEXER_AMC_BEIJING_BLOCK", 770000),
+       apos_epoch: ConfigHelper.parse_integer_env_var("INDEXER_AMC_APOS_EPOCH", 10800)
+
 config :indexer, Indexer.Fetcher.PolygonEdge.Supervisor, disabled?: !(chain_type == "polygon_edge")
 
 config :indexer, Indexer.Fetcher.PolygonEdge.Deposit.Supervisor, disabled?: !(chain_type == "polygon_edge")

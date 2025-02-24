@@ -1,0 +1,17 @@
+<tr>
+    <td class="stakes-td">
+      <span class="color-lighten">
+        <%= @index %>
+      </span>
+    </td>
+    <hr>
+    <td class="stakes-td">
+        <%= link to: address_path(BlockScoutWeb.Endpoint, :show, @rewards.address_hash), "data-test": "address_hash_link", class: assigns[:class] do %>
+          <%= @rewards.address_hash %>
+        <% end %>
+    </td>
+    <hr>
+    <td class="stakes-td color-lighten">
+      <span data-test="amount"> <%= balance(@rewards) %></span>
+    </td>
+</tr>

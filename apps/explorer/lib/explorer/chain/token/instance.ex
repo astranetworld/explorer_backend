@@ -80,6 +80,14 @@ defmodule Explorer.Chain.Token.Instance do
     )
   end
 
+  def address_to_unique_token_instances_721(contract_address_hash) do
+    from(
+      i in Instance,
+      where: i.owner_address_hash == ^contract_address_hash,
+      order_by: [desc: i.token_id]
+    )
+  end
+
   def page_token_instance(query, %PagingOptions{key: {token_id}, asc_order: true}) do
     where(query, [i], i.token_id > ^token_id)
   end

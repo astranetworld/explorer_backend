@@ -113,11 +113,12 @@ defmodule ConfigHelper do
     end
   end
 
-  @spec exchange_rates_price_source() :: Price.CoinGecko | Price.CoinMarketCap | Price.CryptoCompare
+  @spec exchange_rates_price_source() :: Price.CoinGecko | Price.CoinMarketCap | Price.CoinBitMart | Price.CryptoCompare
   def exchange_rates_price_source do
     case System.get_env("EXCHANGE_RATES_PRICE_SOURCE") do
       "coin_gecko" -> Price.CoinGecko
       "coin_market_cap" -> Price.CoinMarketCap
+      "coin_bit_mark" -> Price.CoinBitMart
       "crypto_compare" -> Price.CryptoCompare
       _ -> Price.CryptoCompare
     end

@@ -36,6 +36,27 @@ defmodule BlockScoutWeb.API.V2.TokenView do
     prepare_token_instance(token_instance, token)
   end
 
+  def render("token_instances_721.json", %{
+    token_instances: token_instances,
+    next_page_params: next_page_params,
+  }) do
+    %{
+      "items" => Enum.map(token_instances, &render("token_instance_721.json", %{token_instance: &1})),
+      "next_page_params" => next_page_params
+    }
+  end
+
+  def render("token_instance_721.json", %{token_instance: token_instance}) do
+    %{
+      "id" => token_instance.token_id,
+      "token_contract_address" => Address.checksum(token_instance.token_contract_address_hash),
+      "metadata" => token_instance.metadata,
+      "external_app_url" => NFTHelper.external_url(token_instance),
+      "animation_url" => token_instance.metadata && NFTHelper.retrieve_image(token_instance.metadata["animation_url"]),
+      "image_url" => token_instance.metadata && NFTHelper.get_media_src(token_instance.metadata, false)
+    }
+  end
+
   def render("tokens.json", %{tokens: tokens, next_page_params: next_page_params}) do
     %{"items" => Enum.map(tokens, &render("token.json", %{token: &1})), "next_page_params" => next_page_params}
   end

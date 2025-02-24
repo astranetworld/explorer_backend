@@ -28,6 +28,7 @@ defmodule BlockScoutWeb.API.V2.MainPageController do
       [paging_options: %PagingOptions{page_size: 4}, api?: true]
       |> Chain.list_blocks()
       |> Repo.replica().preload([[miner: :names], :transactions, :rewards])
+      #|> Repo.preload([[miner: :names], :transactions, :rewards,:block_verifiers_rewards])
 
     conn
     |> put_status(200)

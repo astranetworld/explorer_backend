@@ -57,7 +57,7 @@ defmodule EthereumJSONRPC.DecodeError do
     hide_url = Map.get(decode_error, :hide_url, false)
 
     """
-    Failed to decode Ethereum JSONRPC response:
+    Failed to decode AmazeToken JSONRPC response:
 
       request:
 

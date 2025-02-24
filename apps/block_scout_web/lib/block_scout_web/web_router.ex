@@ -105,6 +105,8 @@ defmodule BlockScoutWeb.WebRouter do
     resources "/block", BlockController, only: [:show], param: "hash_or_number" do
       resources("/transactions", BlockTransactionController, only: [:index], as: :transaction)
       resources("/withdrawals", BlockWithdrawalController, only: [:index], as: :withdrawal)
+      resources("/verifiers", BlockVerifiersController, only: [:index], as: :verifier)
+      resources("/rewards", BlockMinerRewardController, only: [:index], as: :reward)
     end
 
     resources("/blocks", BlockController, as: :blocks, only: [:index])

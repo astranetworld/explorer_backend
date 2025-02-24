@@ -20,7 +20,9 @@ defmodule BlockScoutWeb.BlockController do
           necessity_by_association: %{
             :transactions => :optional,
             [miner: :names] => :optional,
-            :rewards => :optional
+            :rewards => :optional,
+            :block_verifiers_rewards => :optional,
+            :block_minner_rewards => :optional
           },
           block_type: "Block"
         ]
@@ -42,7 +44,9 @@ defmodule BlockScoutWeb.BlockController do
       necessity_by_association: %{
         :transactions => :optional,
         [miner: :names] => :optional,
-        :rewards => :optional
+        :rewards => :optional,
+        :block_verifiers_rewards => :optional,
+        :block_minner_rewards => :optional
       },
       block_type: "Reorg"
     ]
@@ -55,7 +59,9 @@ defmodule BlockScoutWeb.BlockController do
         :transactions => :optional,
         [miner: :names] => :optional,
         :nephews => :required,
-        :rewards => :optional
+        :rewards => :optional,
+        :block_verifiers_rewards => :optional,
+        :block_minner_rewards => :optional
       },
       block_type: "Uncle"
     ]

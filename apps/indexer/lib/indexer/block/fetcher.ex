@@ -13,6 +13,7 @@ defmodule Indexer.Block.Fetcher do
   alias Explorer.Chain
   alias Explorer.Chain.{Address, Block, Hash, Import, Transaction, Wei}
   alias Explorer.Chain.Block.Reward
+  alias Explorer.Chain.Block.Verifier
   alias Explorer.Chain.Cache.Blocks, as: BlocksCache
   alias Explorer.Chain.Cache.{Accounts, BlockNumber, Transactions, Uncles}
   alias Indexer.Block.Fetcher.Receipts
@@ -39,8 +40,11 @@ defmodule Indexer.Block.Fetcher do
     MintTransfers,
     TokenInstances,
     TokenTransfers,
-    TransactionActions
+    TransactionActions,
+    VerifierParams
   }
+
+  alias Indexer.Transform.Amc.AddressVerifyDaily
 
   alias Indexer.Transform.PolygonEdge.{DepositExecutes, Withdrawals}
 
@@ -64,6 +68,8 @@ defmodule Indexer.Block.Fetcher do
                 blocks: Import.Runner.options(),
                 block_second_degree_relations: Import.Runner.options(),
                 block_rewards: Import.Runner.options(),
+                verifier: Import.Runner.options(),
+                address_verify_daily: Import.Runner.options(),
                 broadcast: term(),
                 logs: Import.Runner.options(),
                 token_transfers: Import.Runner.options(),
@@ -135,6 +141,8 @@ defmodule Indexer.Block.Fetcher do
              transactions_params: transactions_params_without_receipts,
              withdrawals_params: withdrawals_params,
              block_second_degree_relations_params: block_second_degree_relations_params,
+             verifiers_params: verifiers,
+             rewards_params: rewards_params,
              errors: blocks_errors
            }}} <- {:blocks, fetched_blocks},
          blocks = TransformBlocks.transform_blocks(blocks_params),
@@ -162,7 +170,9 @@ defmodule Indexer.Block.Fetcher do
              token_transfers: token_transfers,
              transactions: transactions_with_receipts,
              transaction_actions: transaction_actions,
-             withdrawals: withdrawals_params
+             withdrawals: withdrawals_params,
+             verifiers: verifiers,
+             rewards_params: rewards_params
            }),
          coin_balances_params_set =
            %{
@@ -179,6 +189,12 @@ defmodule Indexer.Block.Fetcher do
              blocks: blocks
            }
            |> AddressCoinBalancesDaily.params_set(),
+         address_verify_daily_set =
+           %{
+             verifiers_params: verifiers,
+             blocks: blocks
+           }
+           |> AddressVerifyDaily.params_set(),
          beneficiaries_with_gas_payment =
            beneficiaries_with_gas_payment(blocks, beneficiary_params_set, transactions_with_receipts),
          address_token_balances = AddressTokenBalances.params_set(%{token_transfers_params: token_transfers}),
@@ -189,6 +205,7 @@ defmodule Indexer.Block.Fetcher do
            addresses: %{params: addresses},
            address_coin_balances: %{params: coin_balances_params_set},
            address_coin_balances_daily: %{params: coin_balances_params_daily_set},
+           address_block_verify_epoch: %{params: address_verify_daily_set},
            address_token_balances: %{params: address_token_balances},
            address_current_token_balances: %{
              params: address_token_balances |> MapSet.to_list() |> TokenBalances.to_address_current_token_balances()
@@ -196,6 +213,8 @@ defmodule Indexer.Block.Fetcher do
            blocks: %{params: blocks},
            block_second_degree_relations: %{params: block_second_degree_relations_params},
            block_rewards: %{errors: beneficiaries_errors, params: beneficiaries_with_gas_payment},
+           block_verifiers_rewards: %{params: verifiers},
+           block_minner_rewards: %{params: rewards_params},
            logs: %{params: logs},
            token_transfers: %{params: token_transfers},
            tokens: %{on_conflict: :nothing, params: tokens},
@@ -251,6 +270,11 @@ defmodule Indexer.Block.Fetcher do
 
   defp update_transactions_cache(transactions) do
     Transactions.update(transactions)
+  end
+
+  defp update_verifiers_cache(verifier) do
+    #Logger.info("====wwww=verifier===")
+    # Verifiers.update(verifier)
   end
 
   defp update_addresses_cache(addresses), do: Accounts.drop(addresses)

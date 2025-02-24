@@ -16,6 +16,7 @@ defmodule BlockScoutWeb.ChainController do
   alias Explorer.Counters.AverageBlockTime
   alias Explorer.Market
   alias Phoenix.View
+  require  Logger
 
   def show(conn, _params) do
     transaction_estimated_count = TransactionCache.estimated_count()
@@ -131,7 +132,7 @@ defmodule BlockScoutWeb.ChainController do
       blocks =
         [paging_options: %PagingOptions{page_size: 4}]
         |> Chain.list_blocks()
-        |> Repo.preload([[miner: :names], :transactions, :rewards])
+        |> Repo.preload([[miner: :names], :transactions, :rewards, :block_verifiers_rewards]) #:block_minner_rewards
         |> Enum.map(fn block ->
           %{
             chain_block_html:

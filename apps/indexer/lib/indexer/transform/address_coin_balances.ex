@@ -3,6 +3,11 @@ defmodule Indexer.Transform.AddressCoinBalances do
   Extracts `Explorer.Chain.Address.CoinBalance` params from other schema's params.
   """
 
+  require Logger
+
+  import EthereumJSONRPC,
+    only: [integer_to_quantity: 1, json_rpc: 2, quantity_to_integer: 1, request: 1]
+
   def params_set(%{} = import_options) do
     Enum.reduce(import_options, MapSet.new(), &reducer/2)
   end
@@ -19,6 +24,24 @@ defmodule Indexer.Transform.AddressCoinBalances do
     Enum.into(blocks_params, acc, fn %{miner_hash: address_hash, number: block_number}
                                      when is_binary(address_hash) and is_integer(block_number) ->
       %{address_hash: address_hash, block_number: block_number}
+    end)
+  end
+  # todo
+#  defp reducer({:blocks_params1, blocks_params1}, acc) when is_list(blocks_params1) do
+#    # a block MUST have a hash and number
+#    blocks_params1
+#    |> Enum.into(acc, fn
+#      %{hash: block_hash, number: block_number}
+#      when is_binary(block_hash) and is_integer(block_number) ->
+#        %{block_hash: block_hash, block_number: block_number}
+#        # MapSet.put(acc, %{block_hash: block_hash, block_number: block_number})
+#    end)
+#  end
+
+  defp reducer({:verifiers_params, verifiers_params}, initial) when is_list(verifiers_params) do
+    Enum.into(verifiers_params, initial, fn %{address: address, public_key: public_key}
+                                            when is_binary(address) and is_binary(public_key) ->
+      %{address: address, public_key: public_key}
     end)
   end
 

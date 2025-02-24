@@ -18,6 +18,9 @@ defmodule BlockScoutWeb.Chain do
   import Explorer.Helper, only: [parse_integer: 1]
 
   alias Explorer.Chain.Block.Reward
+  alias Explorer.Chain.Block.MinnerReward
+  alias Explorer.Chain.Block.Verifier
+  alias Explorer.Chain.Amc.AddressVerifyDaily
 
   alias Explorer.Chain.{
     Address,
@@ -52,6 +55,9 @@ defmodule BlockScoutWeb.Chain do
   @default_paging_options %PagingOptions{page_size: @page_size + 1}
   @address_hash_len 40
   @tx_block_hash_len 64
+
+  @verify_daily_page_size 7
+  @verify_daily_paging_options  %PagingOptions{page_size: @verify_daily_page_size + 1}
 
   def default_paging_options do
     @default_paging_options
@@ -135,6 +141,10 @@ defmodule BlockScoutWeb.Chain do
       _ ->
         [paging_options: @default_paging_options]
     end
+  end
+
+  def paging_options(%{"address_hash" => address_hash}) do
+    [paging_options: %{@default_paging_options | key: {address_hash}}]
   end
 
   def paging_options(%{
@@ -276,6 +286,10 @@ defmodule BlockScoutWeb.Chain do
       _ ->
         [paging_options: @default_paging_options]
     end
+  end
+
+  def paging_options(%{"epoch" => epoch}) do
+    [paging_options: %{@verify_daily_paging_options | key: {epoch}}]
   end
 
   def paging_options(%{"block_number" => block_number_string}) when is_binary(block_number_string) do
@@ -492,6 +506,26 @@ defmodule BlockScoutWeb.Chain do
 
   defp paging_params(%Transaction{block_number: block_number, index: index}) do
     %{"block_number" => block_number, "index" => index}
+  end
+
+  defp paging_params(%{address_hash: address_hash, block_timestamp: timestamp, block_number: number}) do
+    %{"block_number" => number}
+  end
+
+  defp paging_params(%{address_hash: address_hash, block_timestamp: timestamp, block_number: number, amount: amount}) do
+    %{"block_number" => number}
+  end
+
+  defp paging_params(%AddressVerifyDaily{epoch: epoch}) do
+    %{"epoch" => epoch}
+  end
+
+  defp paging_params(%Verifier{address_hash: address_hash}) do
+    %{"address_hash" => address_hash}
+  end
+
+  defp paging_params(%MinnerReward{address_hash: address_hash}) do
+    %{"address_hash" => address_hash}
   end
 
   defp paging_params(%TokenTransfer{block_number: block_number, log_index: index}) do

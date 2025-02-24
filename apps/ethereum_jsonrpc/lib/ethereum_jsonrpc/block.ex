@@ -7,6 +7,8 @@ defmodule EthereumJSONRPC.Block do
   import EthereumJSONRPC, only: [quantity_to_integer: 1, timestamp_to_datetime: 1]
 
   alias EthereumJSONRPC.{Transactions, Uncles, Withdrawals}
+  alias EthereumJSONRPC.AmazeToken.Verifiers
+  alias EthereumJSONRPC.AmazeToken.Rewards
 
   @type elixir :: %{String.t() => non_neg_integer | DateTime.t() | String.t() | nil}
   @type params :: %{
@@ -468,6 +470,55 @@ defmodule EthereumJSONRPC.Block do
 
   def elixir_to_transactions(_), do: []
 
+  # @spec elixir_to_verifiers(elixir) :: Verifiers.elixir()
+  # def elixir_to_verifiers(%{"verifier" => verifiers}), do: verifiers
+
+  @spec elixir_to_verifiers(elixir) :: Verifiers.elixir()
+  def elixir_to_verifiers(%{
+        "verifier" => verifiers,
+        "hash" => block_hash,
+        "number" => block_number
+      }) do
+    verifiers
+    |> Enum.map(fn acc ->
+      acc
+      |> Map.put("block_hash", block_hash)
+      |> Map.put("block_number", block_number)
+    end)
+
+    # |> Enum.map(fn acc ->
+    #   acc
+    #   |> Map.put(%{"block_hash" => block_hash})
+    #   |> Map.put(block_number,block_number)
+    # end)
+
+  end
+
+  def elixir_to_verifiers(_), do: []
+
+  @spec elixir_to_rewards(elixir) :: Rewards.elixir()
+  def elixir_to_rewards(%{
+      "rewards" => rewards,
+      "hash" => block_hash,
+      "number" => block_number
+      }) do
+    rewards
+    |> Enum.map(fn acc ->
+      acc
+      |> Map.put("block_hash", block_hash)
+      |> Map.put("block_number", block_number)
+    end)
+
+    # |> Enum.map(fn acc ->
+    #   acc
+    #   |> Map.put(%{"block_hash" => block_hash})
+    #   |> Map.put(block_number,block_number)
+    # end)
+
+  end
+
+  def elixir_to_rewards(_), do: []
+
   @doc """
   Get `t:EthereumJSONRPC.Uncles.elixir/0` from `t:elixir/0`.
 
@@ -718,6 +769,14 @@ defmodule EthereumJSONRPC.Block do
   defp entry_to_elixir({"withdrawals" = key, withdrawals}, %{"hash" => block_hash, "number" => block_number})
        when not is_nil(block_number) do
     {key, Withdrawals.to_elixir(withdrawals, block_hash, quantity_to_integer(block_number))}
+  end
+
+  defp entry_to_elixir({"verifier" = key, verifiers}, _block) do
+    {key, Verifiers.to_elixir(verifiers)}
+  end
+
+  defp entry_to_elixir({"rewards" = key, rewards}, _block) do
+    {key, Rewards.to_elixir(rewards)}
   end
 
   # Arbitrum fields

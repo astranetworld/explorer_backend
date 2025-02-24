@@ -108,6 +108,26 @@ defmodule BlockScoutWeb.API.V2.TokenController do
     end
   end
 
+  def instances_721(conn, %{"address_hash_param" => address_hash_string} = params) do
+    with {:format, {:ok, address_hash}} <- {:format, Chain.string_to_address_hash(address_hash_string)},
+         {:ok, false} <- AccessHelper.restricted_access?(address_hash_string, params)  do
+      results_plus_one =
+        Chain.address_to_unique_tokens_721(
+          address_hash,
+          Keyword.merge(unique_tokens_paging_options(params), @api_true)
+        )
+
+      {token_instances, next_page} = split_list_by_page(results_plus_one)
+
+      next_page_params =
+        next_page |> unique_tokens_next_page(token_instances, delete_parameters_from_next_page_params(params))
+
+      conn
+      |> put_status(200)
+      |> render(:token_instances_721, %{token_instances: token_instances, next_page_params: next_page_params})
+    end
+  end
+
   def instance(conn, %{"address_hash_param" => address_hash_string, "token_id" => token_id_str} = params) do
     with {:format, {:ok, address_hash}} <- {:format, Chain.string_to_address_hash(address_hash_string)},
          {:ok, false} <- AccessHelper.restricted_access?(address_hash_string, params),

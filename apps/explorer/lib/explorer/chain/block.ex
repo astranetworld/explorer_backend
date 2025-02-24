@@ -9,6 +9,8 @@ defmodule Explorer.Chain.Block do
 
   alias Explorer.Chain.{Address, Block, Gas, Hash, PendingBlockOperation, Transaction, Wei, Withdrawal}
   alias Explorer.Chain.Block.{Reward, SecondDegreeRelation}
+  alias Explorer.Chain.Block.Verifier
+  alias Explorer.Chain.Block.MinnerReward
 
   @optional_attrs ~w(size refetch_needed total_difficulty difficulty base_fee_per_gas)a
 
@@ -63,6 +65,8 @@ defmodule Explorer.Chain.Block do
           timestamp: DateTime.t(),
           total_difficulty: difficulty(),
           transactions: %Ecto.Association.NotLoaded{} | [Transaction.t()],
+          block_verifiers_rewards: %Ecto.Association.NotLoaded{} | [Verifier.t()],
+          block_minner_rewards: %Ecto.Association.NotLoaded{} | [MinnerReward.t()],
           refetch_needed: boolean(),
           base_fee_per_gas: Wei.t(),
           is_empty: boolean()
@@ -96,6 +100,11 @@ defmodule Explorer.Chain.Block do
     has_many(:uncles, through: [:uncle_relations, :uncle])
 
     has_many(:transactions, Transaction)
+
+    has_many(:block_verifiers_rewards, Verifier, foreign_key: :block_hash)
+
+    has_many(:block_minner_rewards, MinnerReward, foreign_key: :block_hash)
+
     has_many(:transaction_forks, Transaction.Fork, foreign_key: :uncle_hash)
 
     has_many(:rewards, Reward, foreign_key: :block_hash)

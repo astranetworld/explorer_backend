@@ -32,7 +32,7 @@ defmodule Explorer.Chain do
 
   alias ABI.TypeDecoder
   alias Ecto.{Changeset, Multi}
-
+  alias EthereumJSONRPC.Contract
   alias EthereumJSONRPC.Transaction, as: EthereumJSONRPCTransaction
 
   alias Explorer.Account.WatchlistAddress
@@ -67,7 +67,12 @@ defmodule Explorer.Chain do
     Withdrawal
   }
 
-  alias Explorer.Chain.Block.{EmissionReward, Reward}
+  alias Explorer.Chain.Block.{MinnerReward, EmissionReward, Reward}
+
+  alias Explorer.Chain.Block.Verifier, as: AMCVerifier
+
+  alias Explorer.Chain.Amc.AddressVerifyDaily
+
 
   alias Explorer.Chain.Cache.{
     Accounts,
@@ -850,6 +855,149 @@ defmodule Explorer.Chain do
         )).()
   end
 
+  # @spec block_to_verifiers(Hash.Full.t(), [paging_options | necessity_by_association_option], true | false) :: [
+  #   Verifier.t()
+  # ]
+  def block_to_verifiers(block_hash, options \\ []) when is_list(options) do
+    paging_options = Keyword.get(options, :paging_options, @default_paging_options)
+
+    base_query =
+      from(a in AMCVerifier,
+        where: a.block_hash == ^block_hash,
+        order_by: [a.address_hash]
+      )
+
+    base_query
+    |> page_verifiers(paging_options)
+    |> limit(^paging_options.page_size)
+    |> Repo.all()
+  end
+
+
+  # @spec address_to_verifiers(Hash.Full.t(), [paging_options | necessity_by_association_option], true | false) :: [
+  #   Verifier.t()
+  # ]
+  def address_to_verifiers(address_hash, options \\ []) when is_list(options) do
+    paging_options = Keyword.get(options, :paging_options, @default_paging_options)
+
+    base_query =
+      from(a in AMCVerifier,
+        inner_join: b in Block,
+        on: a.block_hash == b.hash,
+        where: a.address_hash == ^address_hash,
+        select:  %{address_hash: a.address_hash, block_timestamp: b.timestamp, block_number: b.number},
+        order_by: [desc: b.number],
+      )
+
+    base_query
+    |> page_address_verifiers(paging_options)
+    |> limit(^paging_options.page_size)
+    |> Repo.all()
+  end
+
+#   @spec address_to_verify_daily(Hash.Full.t(), [paging_options | necessity_by_association_option], true | false) :: [
+#      AddressVerifyDaily.t()
+#   ]
+  def address_to_verify_daily(address_hash, options \\ []) when is_list(options) do
+    paging_options = Keyword.get(options, :paging_options)
+
+    start_epoch =
+      case paging_options do
+        %PagingOptions{key: {epoch}} when is_integer(epoch) ->
+          epoch
+        end
+
+    end_epoch = max(start_epoch - paging_options.page_size, 1)
+
+    dbAddressVerifyDaily =
+      from(a in AddressVerifyDaily,
+        where: a.address_hash == ^address_hash and a.epoch >= ^end_epoch and a.epoch <= ^start_epoch,
+        order_by: [desc: a.epoch],
+      )
+      |> Repo.all()
+
+    allAddressVerifyDaily = Enum.reduce(start_epoch..end_epoch, dbAddressVerifyDaily , fn epoch, acc ->
+      if Enum.any?(acc, fn e -> e.epoch == epoch end) do
+        acc
+      else
+        [%AddressVerifyDaily{address_hash: address_hash, epoch: epoch, verify_count: 0} | acc]
+      end
+    end)
+    |> Enum.sort_by(fn item -> item.epoch end, &>=/2)
+
+    allAddressVerifyDaily
+
+  end
+
+
+  # @spec block_to_miner_rewards(Hash.Full.t(), [paging_options | necessity_by_association_option], true | false) :: [
+  #   Verifier.t()
+  # ]
+  def block_to_miner_rewards(block_hash, options \\ []) when is_list(options) do
+    paging_options = Keyword.get(options, :paging_options, @default_paging_options)
+
+    base_query =
+      from(a in MinnerReward,
+        where: a.block_hash == ^block_hash,
+        order_by: [a.address_hash]
+      )
+
+    base_query
+    |> page_rewards(paging_options)
+    |> limit(^paging_options.page_size)
+    |> Repo.all()
+  end
+
+
+  def address_to_miner_rewards(address_hash, options \\ []) when is_list(options) do
+    paging_options = Keyword.get(options, :paging_options, @default_paging_options)
+
+    base_query =
+      from(a in MinnerReward,
+        inner_join: b in Block,
+        on: a.block_hash == b.hash,
+        where: a.address_hash == ^address_hash,
+        select:  %{address_hash: a.address_hash, block_timestamp: b.timestamp, block_number: b.number, amount: a.amount},
+        order_by: [desc: b.number],
+      )
+
+    base_query
+    |> page_address_rewards(paging_options)
+    |> limit(^paging_options.page_size)
+    |> Repo.all()
+  end
+
+  defp page_address_rewards(query, %PagingOptions{key: nil}), do: query
+
+  defp page_address_rewards(query, %PagingOptions{key: {block_number}}) do
+    where(query, [_, block], block.number < ^block_number)
+  end
+
+  defp page_address_verifiers(query, %PagingOptions{key: nil}), do: query
+
+  defp page_address_verifiers(query, %PagingOptions{key: {block_number}}) do
+    where(query, [_, block], block.number < ^block_number)
+  end
+
+  defp page_rewards(query, %PagingOptions{key: nil}), do: query
+
+  defp page_rewards(query, %PagingOptions{key: {address_hash}}) do
+    from(reward in query,
+      where:
+        reward.address_hash > ^address_hash
+    )
+  end
+
+  defp page_verifiers(query, %PagingOptions{key: nil}), do: query
+
+  defp page_verifiers(query, %PagingOptions{key: {address_hash}}) do
+    from(verifier in query,
+      where:
+        verifier.address_hash > ^address_hash
+    )
+  end
+
+
   @spec block_to_withdrawals(
           Hash.Full.t(),
           [paging_options | necessity_by_association_option]
@@ -939,6 +1087,28 @@ defmodule Explorer.Chain do
       )
 
     Repo.aggregate(query, :count, :hash)
+  end
+  @spec block_to_miner_verifier_count(Hash.Full.t()) :: non_neg_integer()
+  def block_to_miner_verifier_count(block_hash) do
+    query =
+      from(
+        verifier in AMCVerifier,
+        where: verifier.block_hash == ^block_hash
+      )
+
+    Repo.aggregate(query, :count, :block_hash)
+  end
+
+
+  @spec block_to_miner_rewards_count(Hash.Full.t()) :: non_neg_integer()
+  def block_to_miner_rewards_count(block_hash) do
+    query =
+      from(
+        minner in MinnerReward,
+        where: minner.block_hash == ^block_hash
+      )
+
+    Repo.aggregate(query, :count, :block_hash)
   end
 
   @spec check_if_withdrawals_in_block(Hash.Full.t()) :: boolean()
@@ -3987,6 +4157,13 @@ defmodule Explorer.Chain do
     |> order_by([transaction], desc: transaction.block_number, desc: transaction.index)
   end
 
+
+  defp fetch_verifiers_in_ascending_order_by_index(paging_options) do
+    AMCVerifier
+    |> order_by([block_verifiers_rewards], desc: block_verifiers_rewards.inserted_at, asc: block_verifiers_rewards.updated_at)
+    |> handle_paging_options(paging_options)
+  end
+
   defp fetch_transactions_in_ascending_order_by_index(paging_options) do
     Transaction
     |> order_by([transaction], asc: transaction.index)
@@ -5123,6 +5300,17 @@ defmodule Explorer.Chain do
     |> limit(^paging_options.page_size)
     |> select_repo(options).all()
     |> Enum.map(&put_owner_to_token_instance(&1, options))
+  end
+
+  @spec address_to_unique_tokens_721(Hash.Address.t(), [paging_options | api?]) :: [Instance.t()]
+  def address_to_unique_tokens_721(address_hash, options \\ []) do
+    paging_options = Keyword.get(options, :paging_options, @default_paging_options)
+
+    address_hash
+    |> Instance.address_to_unique_token_instances_721()
+    |> Instance.page_token_instance(paging_options)
+    |> limit(^paging_options.page_size)
+    |> select_repo(options).all()
   end
 
   def put_owner_to_token_instance(%Instance{} = token_instance, options \\ []) do

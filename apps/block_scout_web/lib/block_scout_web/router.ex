@@ -40,6 +40,7 @@ defmodule BlockScoutWeb.Router do
     scope "/", BlockScoutWeb do
       pipe_through(:browser)
       get("/api-docs", PageNotFoundController, :index)
+      get("/api-docs-test", PageNotFoundController, :index)
       get("/eth-rpc-api-docs", PageNotFoundController, :index)
     end
   end
@@ -50,6 +51,7 @@ defmodule BlockScoutWeb.Router do
     get("/robots.txt", RobotsController, :robots)
     get("/sitemap.xml", RobotsController, :sitemap)
     get("/api-docs", APIDocsController, :index)
+    get("/api-docs-test", APIDocsController, :api_docs_test)
     get("/eth-rpc-api-docs", APIDocsController, :eth_rpc)
   end
 
