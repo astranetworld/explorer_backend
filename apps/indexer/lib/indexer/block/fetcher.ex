@@ -13,6 +13,7 @@ defmodule Indexer.Block.Fetcher do
   alias EthereumJSONRPC.{Blocks, FetchedBeneficiaries}
   alias Explorer.Chain
   alias Explorer.Chain.Block.Reward
+  alias Explorer.Chain.Block.Verifier
   alias Explorer.Chain.Cache.Blocks, as: BlocksCache
   alias Explorer.Chain.Cache.{Accounts, BlockNumber, Transactions, Uncles}
   alias Explorer.Chain.Filecoin.PendingAddressOperation, as: FilecoinPendingAddressOperation
@@ -49,8 +50,11 @@ defmodule Indexer.Block.Fetcher do
     SignedAuthorizations,
     TokenInstances,
     TokenTransfers,
-    TransactionActions
+    TransactionActions,
+    VerifierParams
   }
+
+  alias Indexer.Transform.Amc.AddressVerifyDaily
 
   alias Indexer.Transform.Optimism.Withdrawals, as: OptimismWithdrawals
 
@@ -85,6 +89,8 @@ defmodule Indexer.Block.Fetcher do
                 blocks: Import.Runner.options(),
                 block_second_degree_relations: Import.Runner.options(),
                 block_rewards: Import.Runner.options(),
+                verifier: Import.Runner.options(),
+                address_verify_daily: Import.Runner.options(),
                 broadcast: term(),
                 logs: Import.Runner.options(),
                 token_transfers: Import.Runner.options(),
@@ -157,6 +163,8 @@ defmodule Indexer.Block.Fetcher do
              transactions_params: transactions_params_without_receipts,
              withdrawals_params: withdrawals_params,
              block_second_degree_relations_params: block_second_degree_relations_params,
+             verifiers_params: verifiers,
+             rewards_params: rewards_params,
              errors: blocks_errors
            } = fetched_blocks}} <- {:blocks, fetch_result},
          blocks = TransformBlocks.transform_blocks(blocks_params),
@@ -212,7 +220,9 @@ defmodule Indexer.Block.Fetcher do
              transactions: transactions_with_receipts,
              transaction_actions: transaction_actions,
              withdrawals: withdrawals_params,
-             polygon_zkevm_bridge_operations: polygon_zkevm_bridge_operations
+             polygon_zkevm_bridge_operations: polygon_zkevm_bridge_operations,
+             verifiers: verifiers,
+             rewards_params: rewards_params
            }),
          coin_balances_params_set =
            %{
@@ -241,6 +251,8 @@ defmodule Indexer.Block.Fetcher do
            blocks: %{params: blocks},
            block_second_degree_relations: %{params: block_second_degree_relations_params},
            block_rewards: %{errors: beneficiaries_errors, params: beneficiaries_with_gas_payment},
+           block_verifiers_rewards: %{params: verifiers},
+           block_minner_rewards: %{params: rewards_params},
            logs: %{params: logs},
            token_transfers: %{params: token_transfers},
            tokens: %{params: tokens},
@@ -401,6 +413,11 @@ defmodule Indexer.Block.Fetcher do
 
   defp update_transactions_cache(transactions) do
     Transactions.update(transactions)
+  end
+
+  defp update_verifiers_cache(verifier) do
+    #Logger.info("====wwww=verifier===")
+    # Verifiers.update(verifier)
   end
 
   defp update_addresses_cache(addresses), do: Accounts.drop(addresses)

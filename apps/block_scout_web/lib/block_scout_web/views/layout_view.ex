@@ -8,21 +8,21 @@ defmodule BlockScoutWeb.LayoutView do
   import BlockScoutWeb.APIDocsView, only: [blockscout_url: 1]
 
   @default_other_networks [
+    # %{
+    #   title: "POA",
+    #   url: "https://blockscout.com/poa/core"
+    # },
+    # %{
+    #   title: "Sokol",
+    #   url: "https://blockscout.com/poa/sokol",
+    #   test_net?: true
+    # },
+    # %{
+    #   title: "Gnosis Chain",
+    #   url: "https://blockscout.com/xdai/mainnet"
+    # },
     %{
-      title: "POA",
-      url: "https://blockscout.com/poa/core"
-    },
-    %{
-      title: "Sokol",
-      url: "https://blockscout.com/poa/sokol",
-      test_net?: true
-    },
-    %{
-      title: "Gnosis Chain",
-      url: "https://blockscout.com/xdai/mainnet"
-    },
-    %{
-      title: "Ethereum Classic",
+      title: "AmazeToken Classic",
       url: "https://blockscout.com/etc/mainnet",
       other?: true
     },
@@ -30,6 +30,15 @@ defmodule BlockScoutWeb.LayoutView do
       title: "RSK",
       url: "https://blockscout.com/rsk/mainnet",
       other?: true
+    },
+    %{
+      title: "AmazeToken Mainnet",
+      url: "http://mainnet.amazechain.com"
+    },
+    %{
+      title: "AmazeToken Testnet",
+      url: "http://testnet.amazechain.com",
+      test_net?: true
     }
   ]
 

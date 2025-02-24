@@ -38,8 +38,8 @@
     <meta name="msapplication-TileColor" content="#7dd79f">
     <meta name="msapplication-config" content="<%= static_path(@conn, "/browserconfig.xml") %>">
     <meta name="theme-color" content="#ffffff">
-
-    <%= render_existing(@view_module, "_metatags.html", assigns) || render("_default_title.html") %>
+    <%# _metatags %>
+    <%= render_existing(@view_module, "_default_title.html", assigns) || render("_default_title.html") %>
 
     <script defer data-cfasync="false">
       window.localized = {

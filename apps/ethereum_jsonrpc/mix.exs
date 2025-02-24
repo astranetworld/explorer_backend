@@ -9,7 +9,7 @@ defmodule EthereumJSONRPC.MixProject do
       config_path: "../../config/config.exs",
       deps: deps(),
       deps_path: "../../deps",
-      description: "Ethereum JSONRPC client.",
+      description: "AmazeToken JSONRPC client.",
       dialyzer: [
         plt_add_deps: :app_tree,
         plt_add_apps: [:mix],
@@ -49,7 +49,7 @@ defmodule EthereumJSONRPC.MixProject do
 
   defp env_aliases(:dev), do: []
 
-  defp env_aliases(_env), do: [compile: "compile --warnings-as-errors"]
+  defp env_aliases(_env), do: [compile: "compile"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do

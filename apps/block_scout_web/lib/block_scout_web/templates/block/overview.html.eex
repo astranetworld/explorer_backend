@@ -199,6 +199,41 @@
               </dt>
               <dd class="col-sm-9 col-lg-10"><%= to_string(@block.nonce) %></dd>
             </dl>
+             <hr>
+            <!--  Miner Verifiers -->
+            <dl class="row">
+              <dt class="col-sm-3 col-lg-2 text-muted">
+                <%= render BlockScoutWeb.CommonComponentsView, "_i_tooltip_2.html",
+                text: gettext("The number of Verifiers in the block.") %>
+                <%= gettext("Miner Verifiers") %>
+              </dt>
+              <dd class="col-sm-9 col-lg-10">
+                <a href="#txs-verifier" class="page-link bs-label large btn-no-border-link-to-tems">
+                  <%= if @block_miner_verifier_count == 1 do %>
+                    <%= gettext "%{count} Verifiers", count: @block_miner_verifier_count %>
+                  <% else %>
+                    <%= gettext "%{count} Verifiers", count: @block_miner_verifier_count %>
+                  <% end %>
+                </a>
+              </dd>
+            </dl>
+            <!-- Miner Rewards -->
+            <dl class="row">
+              <dt class="col-sm-3 col-lg-2 text-muted">
+                <%= render BlockScoutWeb.CommonComponentsView, "_i_tooltip_2.html",
+                text: gettext("The number of reward in the block.") %>
+                <%= gettext("Miner Rewards") %>
+              </dt>
+              <dd class="col-sm-9 col-lg-10">
+              <a href="#txs-reward" class="page-link bs-label large btn-no-border-link-to-tems">
+                <%= if @block_miner_rewards_count == 1 do %>
+                  <%= gettext "%{count} Rewards", count: @block_miner_rewards_count %>
+                <% else %>
+                  <%= gettext "%{count} Rewards", count: @block_miner_rewards_count %>
+                <% end %>
+              </a>
+              </dd>
+            </dl>
           <% end %>
           <%= if !is_nil(@block.base_fee_per_gas) do%>
             <!-- Base Fee per Gas -->

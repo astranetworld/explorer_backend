@@ -153,6 +153,18 @@ defmodule Indexer.Transform.Addresses do
         %{from: :address_hash, to: :hash}
       ]
     ],
+    verifiers: [
+      [
+        %{from: :block_number, to: :fetched_coin_balance_block_number},
+        %{from: :address_hash, to: :hash}
+      ]
+    ],
+    rewards_params: [
+      [
+        %{from: :block_number, to: :fetched_coin_balance_block_number},
+        %{from: :address_hash, to: :hash}
+      ]
+    ],
     withdrawals: [
       [
         %{from: :block_number, to: :fetched_coin_balance_block_number},
@@ -473,6 +485,18 @@ defmodule Indexer.Transform.Addresses do
             }
           ],
           optional(:block_reward_contract_beneficiaries) => [
+            %{
+              required(:address_hash) => String.t(),
+              required(:block_number) => non_neg_integer()
+            }
+          ],
+          optional(:verifiers) => [
+            %{
+              required(:address_hash) => String.t(),
+              required(:block_number) => non_neg_integer()
+            }
+          ],
+          optional(:rewards_params) => [
             %{
               required(:address_hash) => String.t(),
               required(:block_number) => non_neg_integer()

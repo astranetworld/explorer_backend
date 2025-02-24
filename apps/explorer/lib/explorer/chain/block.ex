@@ -193,6 +193,8 @@ defmodule Explorer.Chain.Block do
   alias Explorer.Chain.Block.{EmissionReward, Reward}
   alias Explorer.Repo
   alias Explorer.Utility.MissingRangesManipulator
+  alias Explorer.Chain.Block.Verifier
+  alias Explorer.Chain.Block.MinnerReward
 
   @optional_attrs ~w(size refetch_needed total_difficulty difficulty base_fee_per_gas)a
 
