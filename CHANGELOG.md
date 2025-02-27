@@ -1,5 +1,14 @@
 # Changelog
 
+## 7.0.1
+
+### 🐛 Bug Fixes
+
+- Show scam ENS in search ([#11933](https://github.com/blockscout/blockscout/issues/11933))
+- Show scam EOA in search ([#11932](https://github.com/blockscout/blockscout/issues/11932))
+- Replace unique filecoin addresses indexes with not unique ([#11905](https://github.com/blockscout/blockscout/issues/11905))
+- Render token transfers from celo epoch logs ([#11915](https://github.com/blockscout/blockscout/issues/11915))
+
 ## 7.0.0
 
 ### 🚀 Features
